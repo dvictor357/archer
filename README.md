@@ -8,6 +8,8 @@
   <img src="docs/pay-settled.png" alt="A 0.5 USDC request on Arc testnet, paid via a relayed EIP-3009 signature" width="720">
 </p>
 
+**Try it:** https://archer-bay.vercel.app (Arc testnet — get USDC at [faucet.circle.com](https://faucet.circle.com))
+
 **Live on Arc testnet:** router [`0x509cF81f15450D908A88b3FC25F61641F42A4AB3`](https://testnet.arcscan.app/address/0x509cF81f15450D908A88b3FC25F61641F42A4AB3) (source verified) ·
 proof tx [`0x5e73…3ef`](https://testnet.arcscan.app/tx/0x5e7316d6b79bc5fe2721e64ec47e429c1d4f9090152bec42286604e37f0de3ef) (payer signed, relayer paid gas, `Paid` emitted with `payer = signer`).
 
