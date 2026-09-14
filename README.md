@@ -88,7 +88,7 @@ Set `NEXT_PUBLIC_ARC_NETWORK=arcMainnet` to point the whole app at mainnet once 
 ## Roadmap
 
 - [x] Router contract + tests
-- [x] Deploy testnet: [`0xD0C53237E37C77b7DC64063B2D8c269Bef1CD3c5`](https://testnet.arcscan.app/address/0xD0C53237E37C77b7DC64063B2D8c269Bef1CD3c5)
+- [x] Deploy testnet: [`0x509cF81f15450D908A88b3FC25F61641F42A4AB3`](https://testnet.arcscan.app/address/0x509cF81f15450D908A88b3FC25F61641F42A4AB3)
 - [x] Web: create link / pay page / `Paid` webhook listener (wss)
 - [x] EIP-3009 sign-and-relay path (`payWithAuthorization` + `/api/relay`)
 - [ ] CCTP (domain 26): pay from another chain

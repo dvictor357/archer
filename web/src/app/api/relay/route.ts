@@ -56,6 +56,21 @@ function parseBody(raw: unknown): Body | string {
   return { id, from, validAfter, validBefore, nonce, signature };
 }
 
+/** Surface the decoded custom error (e.g. AuthorizationNonceMismatch) or USDC's revert string. */
+function describeRevert(e: unknown): string {
+  let cur: unknown = e;
+  for (let i = 0; i < 6 && cur && typeof cur === "object"; i++) {
+    const c = cur as { data?: { errorName?: string; args?: unknown[] }; reason?: string; shortMessage?: string; cause?: unknown };
+    if (c.data?.errorName) {
+      const args = (c.data.args ?? []).map((a) => (typeof a === "bigint" ? a.toString() : String(a))).join(", ");
+      return `${c.data.errorName}(${args})`;
+    }
+    if (c.reason) return c.reason;
+    cur = c.cause;
+  }
+  return (e as { shortMessage?: string }).shortMessage ?? (e as Error).message;
+}
+
 export async function POST(req: Request) {
   const relayerKey = process.env.RELAYER_PRIVATE_KEY;
   if (!relayerKey || !isHex(relayerKey) || relayerKey.length !== 66) {
@@ -111,8 +126,7 @@ export async function POST(req: Request) {
       args,
     }));
   } catch (e) {
-    const msg = (e as { shortMessage?: string }).shortMessage ?? (e as Error).message;
-    return bad(`simulation failed: ${msg}`, 422);
+    return bad(`simulation failed: ${describeRevert(e)}`, 422);
   }
 
   const walletClient = createWalletClient({ account, chain: activeChain, transport: http(activeConfig.rpc) });
