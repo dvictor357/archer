@@ -3,6 +3,8 @@ pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/Test.sol";
 import {ArcherRouter} from "../src/ArcherRouter.sol";
+import {IUSDC} from "../src/interfaces/IUSDC.sol";
+import {MockUSDC} from "./mocks/MockUSDC.sol";
 
 contract RejectingPayee {
     receive() external payable {
@@ -12,6 +14,7 @@ contract RejectingPayee {
 
 contract ArcherRouterTest is Test {
     ArcherRouter router;
+    MockUSDC usdc;
 
     address payee = makeAddr("payee");
     address payer = makeAddr("payer");
@@ -25,13 +28,25 @@ contract ArcherRouterTest is Test {
     event Refunded(bytes32 indexed id, address indexed payee, address indexed payer, uint64 amount);
 
     function setUp() public {
-        router = new ArcherRouter();
+        usdc = new MockUSDC();
+        router = new ArcherRouter(IUSDC(address(usdc)));
         vm.deal(payer, 1000 ether);
     }
 
     function _create(uint64 expiry) internal returns (bytes32 id) {
         vm.prank(payee);
         id = router.createRequest(AMOUNT, expiry, MEMO);
+    }
+
+    // ---- constructor ----
+
+    function test_constructor_revertsZeroUsdc() public {
+        vm.expectRevert(ArcherRouter.ZeroAddress.selector);
+        new ArcherRouter(IUSDC(address(0)));
+    }
+
+    function test_constructor_storesUsdc() public view {
+        assertEq(address(router.USDC()), address(usdc));
     }
 
     // ---- decimals ----

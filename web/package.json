@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "abi": "node -e \"const a=require('../contracts/out/ArcherRouter.sol/ArcherRouter.json').abi;require('fs').writeFileSync('src/lib/abi.ts','// Generated from contracts/out/ArcherRouter.sol/ArcherRouter.json — run `pnpm abi` to refresh.\\nexport const archerRouterAbi = '+JSON.stringify(a,null,2)+' as const;\\n')\"",
+    "abi": "node scripts/abi.mjs",
     "listen": "node --experimental-strip-types scripts/listen.mts"
   },
   "dependencies": {

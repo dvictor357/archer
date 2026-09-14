@@ -47,9 +47,26 @@ Fund the deployer from https://faucet.circle.com first.
 |---|---|---|
 | `createRequest(amount, expiry, memoHash)` | payee | returns deterministic `id = keccak256(payee, nonce)` |
 | `pay(id)` payable | anyone | `msg.value == toNative(amount)`, forwards to payee, emits `Paid` |
+| `payWithAuthorization(id, from, validAfter, validBefore, nonce, v, r, s)` | anyone (relayer) | consumes an EIP-3009 `ReceiveWithAuthorization` signed by `from`, forwards to payee, emits `Paid` with `payer = from` |
 | `cancel(id)` | payee | deletes unpaid request |
 | `refund(id)` payable | payee | returns exact value to payer, emits `Refunded` |
 | `toNative(amount)` | view | 6-dec USDC → 18-dec native wei |
+
+### EIP-3009 path — security model
+
+USDC on Arc implements EIP-3009 (domain `USDC` / `2` / `5042002` / `0x3600…0000`, verified on-chain).
+A payer signs a `ReceiveWithAuthorization`; anyone relays it; the relayer pays gas. Two attacks are
+closed by construction — see `test/ArcherRouterAuthorization.t.sol` and the fork test for proofs:
+
+| Attack | Defense |
+|---|---|
+| Front-run: take the signature from the mempool and consume it with a bare USDC call | `receiveWithAuthorization` (not `transferWithAuthorization`): USDC requires `msg.sender == to`, and `to` is the router |
+| Replay: consume the signature against a *different* request of equal amount whose payee is the attacker | Router requires `nonce == id`; USDC marks the nonce used. The signature is bound to exactly one request |
+| Under-pay: sign a smaller `value` | `value` is read from storage; a signature over any other value fails `ecrecover` |
+
+Fork tests run against the real Arc USDC: `ARC_FORK=1 forge test --match-contract Fork`.
+(Foundry cannot execute Arc's native-transfer precompile at `0x1800…0000`, so the fork test mocks it and
+asserts on the exact calls USDC makes to it.)
 
 ## Web
 
@@ -62,6 +79,10 @@ WEBHOOK_URL=http://localhost:4000/hook pnpm listen   # ...and POST each event
 pnpm abi                                  # regenerate src/lib/abi.ts after forge build
 ```
 
+`/api/relay` needs `RELAYER_PRIVATE_KEY` in `web/.env.local` (server-side only, never `NEXT_PUBLIC_`).
+Fund that address with a little USDC; it pays gas for relayed payments. The route validates input,
+checks the request on-chain, and simulates before broadcasting, so a bad signature never costs gas.
+
 Set `NEXT_PUBLIC_ARC_NETWORK=arcMainnet` to point the whole app at mainnet once `chains.json` has its RPC and router filled in.
 
 ## Roadmap
@@ -69,7 +90,8 @@ Set `NEXT_PUBLIC_ARC_NETWORK=arcMainnet` to point the whole app at mainnet once 
 - [x] Router contract + tests
 - [x] Deploy testnet: [`0xD0C53237E37C77b7DC64063B2D8c269Bef1CD3c5`](https://testnet.arcscan.app/address/0xD0C53237E37C77b7DC64063B2D8c269Bef1CD3c5)
 - [x] Web: create link / pay page / `Paid` webhook listener (wss)
+- [x] EIP-3009 sign-and-relay path (`payWithAuthorization` + `/api/relay`)
 - [ ] CCTP (domain 26): pay from another chain
 - [ ] `ArcherEscrow` (held funds, conditional release)
-- [ ] `ArcherAgent` (spending-policy wallet for AI agents, x402)
+- [ ] `ArcherAgent` (x402 — same EIP-3009 primitive, agent-signed)
 - [ ] Mainnet day-1 redeploy (16 Sep 2026)
