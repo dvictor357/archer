@@ -82,6 +82,12 @@ pnpm abi                                  # regenerate src/lib/abi.ts after forg
 `/api/relay` needs `RELAYER_PRIVATE_KEY` in `web/.env.local` (server-side only, never `NEXT_PUBLIC_`).
 Fund that address with a little USDC; it pays gas for relayed payments. The route validates input,
 checks the request on-chain, and simulates before broadcasting, so a bad signature never costs gas.
+Rate limits (per minute): 5 per IP, 3 per signer, 60 global — in-memory, per instance; add edge
+limiting in front for hard guarantees.
+
+```sh
+pnpm test                                 # unit tests (node --test)
+```
 
 Set `NEXT_PUBLIC_ARC_NETWORK=arcMainnet` to point the whole app at mainnet once `chains.json` has its RPC and router filled in.
 

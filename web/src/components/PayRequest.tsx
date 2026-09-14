@@ -157,7 +157,7 @@ export function PayRequest({ id }: { id: Hex }) {
             disabled={!isConnected || busy}
             className="rounded-md bg-zinc-100 px-4 py-2.5 font-medium text-zinc-900 hover:bg-white disabled:opacity-40"
           >
-            {!isConnected ? "Connect wallet" : "Sign & pay (no gas)"}
+            {!isConnected ? "Connect wallet" : "Sign & pay"}
           </button>
           <button
             onClick={payNative}

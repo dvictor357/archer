@@ -13,20 +13,28 @@ import { privateKeyToAccount } from "viem/accounts";
 import { activeChain, activeConfig } from "@/lib/chains";
 import { archerRouterAbi, getRouterAddress, isUnknown, type RequestTuple } from "@/lib/router";
 import { AUTH_TTL_SECONDS } from "@/lib/eip3009";
+import { clientIp, rateLimit } from "@/lib/rateLimit";
 
 /**
  * Relays a signed EIP-3009 authorization to ArcherRouter.payWithAuthorization.
  * The relayer pays gas (in USDC); the signer is recorded on-chain as the payer.
  *
  * Abuse controls, cheapest first:
- *   1. Strict input shape.
- *   2. nonce must equal id (router enforces too; fail early here).
- *   3. validBefore bounded to 2x AUTH_TTL so long-lived signatures are refused.
- *   4. Request must exist, be unpaid, unexpired (read-only RPC, no gas).
- *   5. eth_call simulation before broadcasting — a bad signature never costs gas.
+ *   1. Rate limits: per IP, per signer, and global (see lib/rateLimit.ts).
+ *   2. Strict input shape.
+ *   3. nonce must equal id (router enforces too; fail early here).
+ *   4. validBefore bounded to 2x AUTH_TTL so long-lived signatures are refused.
+ *   5. Request must exist, be unpaid, unexpired (read-only RPC, no gas).
+ *   6. eth_call simulation before broadcasting — a bad signature never costs gas.
  * Anyone may submit a valid signature for any request; that is the product
- * (open relay). Rate limiting belongs at the edge (proxy/CDN).
+ * (open relay). In-memory limits are per instance; add edge limiting for
+ * hard guarantees.
  */
+
+const WINDOW_MS = 60_000;
+const LIMIT_PER_IP = 5;
+const LIMIT_PER_SIGNER = 3;
+const LIMIT_GLOBAL = 60;
 
 export const runtime = "nodejs";
 
@@ -39,8 +47,14 @@ type Body = {
   signature: Hex;
 };
 
-function bad(message: string, status = 400) {
-  return NextResponse.json({ error: message }, { status });
+function bad(message: string, status = 400, headers?: HeadersInit) {
+  return NextResponse.json({ error: message }, { status, headers });
+}
+
+function tooMany(scope: string, retryAfterSeconds: number) {
+  return bad(`rate limit exceeded (${scope}); retry in ${retryAfterSeconds}s`, 429, {
+    "retry-after": String(retryAfterSeconds),
+  });
 }
 
 function parseBody(raw: unknown): Body | string {
@@ -84,9 +98,17 @@ export async function POST(req: Request) {
     return bad((e as Error).message, 503);
   }
 
+  const ip = rateLimit(`ip:${clientIp(req)}`, LIMIT_PER_IP, WINDOW_MS);
+  if (!ip.ok) return tooMany("ip", ip.retryAfterSeconds);
+  const global = rateLimit("global", LIMIT_GLOBAL, WINDOW_MS);
+  if (!global.ok) return tooMany("global", global.retryAfterSeconds);
+
   const parsed = parseBody(await req.json().catch(() => null));
   if (typeof parsed === "string") return bad(parsed);
   const { id, from, nonce, signature } = parsed;
+
+  const signer = rateLimit(`from:${from.toLowerCase()}`, LIMIT_PER_SIGNER, WINDOW_MS);
+  if (!signer.ok) return tooMany("signer", signer.retryAfterSeconds);
   const validAfter = BigInt(parsed.validAfter);
   const validBefore = BigInt(parsed.validBefore);
 
