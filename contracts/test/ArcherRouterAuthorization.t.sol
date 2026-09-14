@@ -85,9 +85,7 @@ contract ArcherRouterAuthorizationTest is Test {
         (uint8 v, bytes32 r, bytes32 s) = _sign(a);
 
         vm.prank(attacker);
-        vm.expectRevert(
-            abi.encodeWithSelector(ArcherRouter.AuthorizationNonceMismatch.selector, victimId, attackerId)
-        );
+        vm.expectRevert(abi.encodeWithSelector(ArcherRouter.AuthorizationNonceMismatch.selector, victimId, attackerId));
         router.payWithAuthorization(attackerId, payer, a.validAfter, a.validBefore, a.nonce, v, r, s);
 
         assertEq(usdc.balanceOf(attacker), 0);

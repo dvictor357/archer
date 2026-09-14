@@ -11,8 +11,9 @@ contract MockUSDC {
     string public constant version = "2";
     uint8 public constant decimals = 6;
 
-    bytes32 public constant RECEIVE_WITH_AUTHORIZATION_TYPEHASH =
-        keccak256("ReceiveWithAuthorization(address from,address to,uint256 value,uint256 validAfter,uint256 validBefore,bytes32 nonce)");
+    bytes32 public constant RECEIVE_WITH_AUTHORIZATION_TYPEHASH = keccak256(
+        "ReceiveWithAuthorization(address from,address to,uint256 value,uint256 validAfter,uint256 validBefore,bytes32 nonce)"
+    );
     bytes32 private constant _DOMAIN_TYPEHASH =
         keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
 
@@ -28,7 +29,9 @@ contract MockUSDC {
 
     function DOMAIN_SEPARATOR() public view returns (bytes32) {
         return keccak256(
-            abi.encode(_DOMAIN_TYPEHASH, keccak256(bytes(name)), keccak256(bytes(version)), block.chainid, address(this))
+            abi.encode(
+                _DOMAIN_TYPEHASH, keccak256(bytes(name)), keccak256(bytes(version)), block.chainid, address(this)
+            )
         );
     }
 

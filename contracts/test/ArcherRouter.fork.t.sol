@@ -121,7 +121,8 @@ contract ArcherRouterForkTest is Test {
         // Bare consumption outside the router.
         vm.prank(attacker);
         vm.expectRevert();
-        IUSDC(USDC).receiveWithAuthorization(payer, address(router), AMOUNT, a.validAfter, a.validBefore, victimId, v, r, s);
+        IUSDC(USDC)
+            .receiveWithAuthorization(payer, address(router), AMOUNT, a.validAfter, a.validBefore, victimId, v, r, s);
 
         assertEq(IUSDC(USDC).balanceOf(attacker), 0);
     }
