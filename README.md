@@ -11,7 +11,7 @@ for confirmations.
 
 ```
 contracts/   Foundry — ArcherRouter.sol + tests + deploy script
-web/         Next.js + viem — pay link UI (WIP)
+web/         Next.js + wagmi/viem — create link, pay page, Paid listener
 chains.json  Shared chain config (testnet 5042002 / mainnet 1243). Deployed router addresses live here.
 ```
 
@@ -51,11 +51,24 @@ Fund the deployer from https://faucet.circle.com first.
 | `refund(id)` payable | payee | returns exact value to payer, emits `Refunded` |
 | `toNative(amount)` | view | 6-dec USDC → 18-dec native wei |
 
+## Web
+
+```sh
+cd web
+pnpm install
+pnpm dev                                  # http://localhost:3000
+pnpm listen                               # subscribe to Paid over wss, log JSON
+WEBHOOK_URL=http://localhost:4000/hook pnpm listen   # ...and POST each event
+pnpm abi                                  # regenerate src/lib/abi.ts after forge build
+```
+
+Set `NEXT_PUBLIC_ARC_NETWORK=arcMainnet` to point the whole app at mainnet once `chains.json` has its RPC and router filled in.
+
 ## Roadmap
 
 - [x] Router contract + tests
-- [ ] Deploy testnet, record address in `chains.json`
-- [ ] Web: create link / pay page / `Paid` webhook listener (wss)
+- [x] Deploy testnet: [`0xD0C53237E37C77b7DC64063B2D8c269Bef1CD3c5`](https://testnet.arcscan.app/address/0xD0C53237E37C77b7DC64063B2D8c269Bef1CD3c5)
+- [x] Web: create link / pay page / `Paid` webhook listener (wss)
 - [ ] CCTP (domain 26): pay from another chain
 - [ ] `ArcherEscrow` (held funds, conditional release)
 - [ ] `ArcherAgent` (spending-policy wallet for AI agents, x402)
