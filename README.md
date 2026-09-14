@@ -1,12 +1,14 @@
 # Archer
 
+[![CI](https://github.com/dvictor357/archer/actions/workflows/ci.yml/badge.svg)](https://github.com/dvictor357/archer/actions/workflows/ci.yml)
+
 **Aim. Release. Settled.** — Payment request links settled in USDC on [Arc](https://arc.network).
 
 <p align="center">
   <img src="docs/pay-settled.png" alt="A 0.5 USDC request on Arc testnet, paid via a relayed EIP-3009 signature" width="720">
 </p>
 
-**Live on Arc testnet:** router [`0x509cF81f15450D908A88b3FC25F61641F42A4AB3`](https://testnet.arcscan.app/address/0x509cF81f15450D908A88b3FC25F61641F42A4AB3) ·
+**Live on Arc testnet:** router [`0x509cF81f15450D908A88b3FC25F61641F42A4AB3`](https://testnet.arcscan.app/address/0x509cF81f15450D908A88b3FC25F61641F42A4AB3) (source verified) ·
 proof tx [`0x5e73…3ef`](https://testnet.arcscan.app/tx/0x5e7316d6b79bc5fe2721e64ec47e429c1d4f9090152bec42286604e37f0de3ef) (payer signed, relayer paid gas, `Paid` emitted with `payer = signer`).
 
 A payee creates a request (amount, expiry, memo) and shares a link. The payer settles it in
@@ -107,7 +109,7 @@ Set `NEXT_PUBLIC_ARC_NETWORK=arcMainnet` to point the whole app at mainnet once 
 - [ ] CCTP (domain 26): pay from another chain
 - [ ] `ArcherEscrow` (held funds, conditional release)
 - [ ] `ArcherAgent` (x402 — same EIP-3009 primitive, agent-signed)
-- [ ] Mainnet day-1 redeploy (16 Sep 2026)
+- [ ] Mainnet day-1 redeploy (16 Sep 2026) — see [docs/MAINNET.md](docs/MAINNET.md)
 
 ## License
 
