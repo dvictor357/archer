@@ -15,13 +15,14 @@ contract ArcherRouterTest is Test {
 
     address payee = makeAddr("payee");
     address payer = makeAddr("payer");
-    uint96 constant AMOUNT = 25 ether; // 25 USDC (native, 18 decimals)
+    uint64 constant AMOUNT = 25_000000; // 25 USDC, 6-decimal view
+    uint256 constant AMOUNT_NATIVE = 25 ether; // same 25 USDC, 18-decimal native view
     bytes32 constant MEMO = keccak256("order-123");
 
-    event RequestCreated(bytes32 indexed id, address indexed payee, uint96 amount, uint64 expiry, bytes32 memoHash);
-    event Paid(bytes32 indexed id, address indexed payer, address indexed payee, uint96 amount);
+    event RequestCreated(bytes32 indexed id, address indexed payee, uint64 amount, uint64 expiry, bytes32 memoHash);
+    event Paid(bytes32 indexed id, address indexed payer, address indexed payee, uint64 amount);
     event Cancelled(bytes32 indexed id);
-    event Refunded(bytes32 indexed id, address indexed payee, address indexed payer, uint96 amount);
+    event Refunded(bytes32 indexed id, address indexed payee, address indexed payer, uint64 amount);
 
     function setUp() public {
         router = new ArcherRouter();
@@ -31,6 +32,14 @@ contract ArcherRouterTest is Test {
     function _create(uint64 expiry) internal returns (bytes32 id) {
         vm.prank(payee);
         id = router.createRequest(AMOUNT, expiry, MEMO);
+    }
+
+    // ---- decimals ----
+
+    function test_toNative_scalesBy1e12() public view {
+        assertEq(router.toNative(AMOUNT), AMOUNT_NATIVE);
+        assertEq(router.toNative(1), 1e12);
+        assertEq(router.toNative(type(uint64).max), uint256(type(uint64).max) * 1e12);
     }
 
     // ---- createRequest ----
@@ -43,7 +52,7 @@ contract ArcherRouterTest is Test {
         bytes32 id = _create(0);
         assertEq(id, expectedId);
 
-        (address p, uint96 amt, uint64 exp, uint64 paidAt, address pr, bytes32 memo) = router.requests(id);
+        (address p, uint64 amt, uint64 exp, uint64 paidAt, address pr, bytes32 memo) = router.requests(id);
         assertEq(p, payee);
         assertEq(amt, AMOUNT);
         assertEq(exp, 0);
@@ -82,9 +91,9 @@ contract ArcherRouterTest is Test {
         emit Paid(id, payer, payee, AMOUNT);
 
         vm.prank(payer);
-        router.pay{value: AMOUNT}(id);
+        router.pay{value: AMOUNT_NATIVE}(id);
 
-        assertEq(payee.balance - before, AMOUNT);
+        assertEq(payee.balance - before, AMOUNT_NATIVE);
         assertEq(address(router).balance, 0);
         (,,, uint64 paidAt, address pr,) = router.requests(id);
         assertEq(paidAt, block.timestamp);
@@ -94,23 +103,31 @@ contract ArcherRouterTest is Test {
     function test_pay_revertsUnknown() public {
         vm.prank(payer);
         vm.expectRevert(abi.encodeWithSelector(ArcherRouter.UnknownRequest.selector, bytes32(0)));
-        router.pay{value: AMOUNT}(bytes32(0));
+        router.pay{value: AMOUNT_NATIVE}(bytes32(0));
     }
 
     function test_pay_revertsAlreadyPaid() public {
         bytes32 id = _create(0);
         vm.startPrank(payer);
-        router.pay{value: AMOUNT}(id);
+        router.pay{value: AMOUNT_NATIVE}(id);
         vm.expectRevert(abi.encodeWithSelector(ArcherRouter.AlreadyPaid.selector, id));
-        router.pay{value: AMOUNT}(id);
+        router.pay{value: AMOUNT_NATIVE}(id);
         vm.stopPrank();
     }
 
-    function test_pay_revertsWrongAmount() public {
+    function test_pay_revertsWrongValue() public {
         bytes32 id = _create(0);
         vm.prank(payer);
-        vm.expectRevert(abi.encodeWithSelector(ArcherRouter.WrongAmount.selector, AMOUNT - 1, AMOUNT));
-        router.pay{value: AMOUNT - 1}(id);
+        vm.expectRevert(abi.encodeWithSelector(ArcherRouter.WrongValue.selector, AMOUNT_NATIVE - 1, AMOUNT_NATIVE));
+        router.pay{value: AMOUNT_NATIVE - 1}(id);
+    }
+
+    /// Sending the 6-decimal number as raw wei is the classic decimals bug — must revert.
+    function test_pay_revertsIfSentSixDecimalValueAsWei() public {
+        bytes32 id = _create(0);
+        vm.prank(payer);
+        vm.expectRevert(abi.encodeWithSelector(ArcherRouter.WrongValue.selector, uint256(AMOUNT), AMOUNT_NATIVE));
+        router.pay{value: AMOUNT}(id);
     }
 
     function test_pay_revertsAfterExpiry() public {
@@ -119,7 +136,7 @@ contract ArcherRouterTest is Test {
         vm.warp(2001);
         vm.prank(payer);
         vm.expectRevert(abi.encodeWithSelector(ArcherRouter.Expired.selector, id, uint64(2000)));
-        router.pay{value: AMOUNT}(id);
+        router.pay{value: AMOUNT_NATIVE}(id);
     }
 
     function test_pay_succeedsAtExactExpiry() public {
@@ -127,7 +144,7 @@ contract ArcherRouterTest is Test {
         bytes32 id = _create(2000);
         vm.warp(2000);
         vm.prank(payer);
-        router.pay{value: AMOUNT}(id);
+        router.pay{value: AMOUNT_NATIVE}(id);
     }
 
     function test_pay_revertsIfPayeeRejects() public {
@@ -136,8 +153,8 @@ contract ArcherRouterTest is Test {
         bytes32 id = router.createRequest(AMOUNT, 0, MEMO);
 
         vm.prank(payer);
-        vm.expectRevert(abi.encodeWithSelector(ArcherRouter.TransferFailed.selector, address(bad), uint256(AMOUNT)));
-        router.pay{value: AMOUNT}(id);
+        vm.expectRevert(abi.encodeWithSelector(ArcherRouter.TransferFailed.selector, address(bad), AMOUNT_NATIVE));
+        router.pay{value: AMOUNT_NATIVE}(id);
     }
 
     // ---- cancel ----
@@ -154,7 +171,7 @@ contract ArcherRouterTest is Test {
 
         vm.prank(payer);
         vm.expectRevert(abi.encodeWithSelector(ArcherRouter.UnknownRequest.selector, id));
-        router.pay{value: AMOUNT}(id);
+        router.pay{value: AMOUNT_NATIVE}(id);
     }
 
     function test_cancel_revertsNotPayee() public {
@@ -167,7 +184,7 @@ contract ArcherRouterTest is Test {
     function test_cancel_revertsIfPaid() public {
         bytes32 id = _create(0);
         vm.prank(payer);
-        router.pay{value: AMOUNT}(id);
+        router.pay{value: AMOUNT_NATIVE}(id);
         vm.prank(payee);
         vm.expectRevert(abi.encodeWithSelector(ArcherRouter.AlreadyPaid.selector, id));
         router.cancel(id);
@@ -178,45 +195,57 @@ contract ArcherRouterTest is Test {
     function test_refund_returnsFundsAndEmits() public {
         bytes32 id = _create(0);
         vm.prank(payer);
-        router.pay{value: AMOUNT}(id);
+        router.pay{value: AMOUNT_NATIVE}(id);
 
         uint256 payerBefore = payer.balance;
         vm.expectEmit(true, true, true, true);
         emit Refunded(id, payee, payer, AMOUNT);
         vm.prank(payee);
-        router.refund{value: AMOUNT}(id);
+        router.refund{value: AMOUNT_NATIVE}(id);
 
-        assertEq(payer.balance - payerBefore, AMOUNT);
+        assertEq(payer.balance - payerBefore, AMOUNT_NATIVE);
         (address p,,,,,) = router.requests(id);
         assertEq(p, address(0));
     }
 
     function test_refund_revertsNotPaid() public {
         bytes32 id = _create(0);
-        vm.deal(payee, AMOUNT);
+        vm.deal(payee, AMOUNT_NATIVE);
         vm.prank(payee);
         vm.expectRevert(abi.encodeWithSelector(ArcherRouter.NotPaid.selector, id));
-        router.refund{value: AMOUNT}(id);
+        router.refund{value: AMOUNT_NATIVE}(id);
     }
 
-    function test_refund_revertsWrongAmount() public {
+    function test_refund_revertsWrongValue() public {
         bytes32 id = _create(0);
         vm.prank(payer);
-        router.pay{value: AMOUNT}(id);
+        router.pay{value: AMOUNT_NATIVE}(id);
         vm.prank(payee);
-        vm.expectRevert(abi.encodeWithSelector(ArcherRouter.WrongAmount.selector, AMOUNT - 1, AMOUNT));
-        router.refund{value: AMOUNT - 1}(id);
+        vm.expectRevert(abi.encodeWithSelector(ArcherRouter.WrongValue.selector, AMOUNT_NATIVE - 1, AMOUNT_NATIVE));
+        router.refund{value: AMOUNT_NATIVE - 1}(id);
     }
 
     // ---- fuzz ----
 
-    function testFuzz_payExactAmount(uint96 amount) public {
-        amount = uint96(bound(amount, 1, 1000 ether));
+    function testFuzz_payExactAmount(uint64 amount) public {
+        amount = uint64(bound(amount, 1, 1000_000000)); // up to 1000 USDC
         vm.prank(payee);
         bytes32 id = router.createRequest(amount, 0, MEMO);
+        uint256 native = router.toNative(amount);
         uint256 before = payee.balance;
         vm.prank(payer);
-        router.pay{value: amount}(id);
-        assertEq(payee.balance - before, amount);
+        router.pay{value: native}(id);
+        assertEq(payee.balance - before, native);
+    }
+
+    function testFuzz_payRejectsAnyOtherValue(uint64 amount, uint256 sent) public {
+        amount = uint64(bound(amount, 1, 1000_000000));
+        uint256 native = router.toNative(amount);
+        vm.assume(sent != native && sent <= 1000 ether);
+        vm.prank(payee);
+        bytes32 id = router.createRequest(amount, 0, MEMO);
+        vm.prank(payer);
+        vm.expectRevert(abi.encodeWithSelector(ArcherRouter.WrongValue.selector, sent, native));
+        router.pay{value: sent}(id);
     }
 }

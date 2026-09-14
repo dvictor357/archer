@@ -2,18 +2,26 @@
   "arcTestnet": {
     "id": 5042002,
     "name": "Arc Testnet",
-    "rpc": "https://rpc.testnet.arc.io",
+    "rpc": "https://rpc.testnet.arc.network",
+    "ws": "wss://rpc.testnet.arc.network",
     "explorer": "https://testnet.arcscan.app",
     "faucet": "https://faucet.circle.com",
-    "nativeCurrency": { "name": "USDC", "symbol": "USDC", "decimals": 18 },
+    "cctpDomain": 26,
+    "usdc": { "address": "0x3600000000000000000000000000000000000000", "decimals": 6 },
+    "eurc": { "address": "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a", "decimals": 6 },
+    "nativeDecimals": 18,
     "router": ""
   },
   "arcMainnet": {
     "id": 1243,
     "name": "Arc",
     "rpc": "",
+    "ws": "",
     "explorer": "",
-    "nativeCurrency": { "name": "USDC", "symbol": "USDC", "decimals": 18 },
+    "cctpDomain": null,
+    "usdc": { "address": "", "decimals": 6 },
+    "eurc": { "address": "", "decimals": 6 },
+    "nativeDecimals": 18,
     "router": ""
   }
 }
